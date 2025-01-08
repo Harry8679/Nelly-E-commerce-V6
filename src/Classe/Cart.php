@@ -2,112 +2,99 @@
 
 namespace App\Classe;
 
-use App\Entity\Product;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class Cart
 {
-    private $session;
-    private $manager;
-
-    public function __construct(EntityManagerInterface $manager, SessionInterface $session)
+    public function __construct(private RequestStack $requestStack)
     {
-        $this->session = $session;
-        $this->manager = $manager;
+        
     }
-
-    public function add($id)
+    
+    public function add($product)
     {
-        $cart = $this->session->get('cart', []);
+        // Appeler la session de Symfony
+        $cart = $this->requestStack->getSession()->get('cart', []); // Initialiser avec un tableau vide si la session est vide
 
-        if (!empty($cart[$id])) {
-            $cart[$id]++;
+        // Vérifier si l'entrée est valide
+        if (isset($cart[$product->getId()]) && is_array($cart[$product->getId()])) {
+            // Ajouter une quantité +1 au produit existant
+            $cart[$product->getId()]['quantity'] += 1;
         } else {
-            $cart[$id] = 1;
+            // Initialiser le produit avec une quantité de 1
+            $cart[$product->getId()] = [
+                'object' => $product,
+                'quantity' => 1,
+            ];
         }
 
-        $this->session->set('cart', $cart);
-    }
-
-    public function get()
-    {
-        return $this->session->get('cart');
-    }
-
-    public function remove()
-    {
-        return $this->session->remove('cart');
-    }
-
-    public function delete($id)
-    {
-        $cart = $this->session->get('cart', []);
-
-        unset($cart[$id]);
-
-        return $this->session->set('cart', $cart);
+        // Créer ma session Cart
+        $this->requestStack->getSession()->set('cart', $cart);
     }
 
     public function decrease($id)
     {
-        $cart = $this->session->get('cart', []);
+        $cart = $this->requestStack->getSession()->get('cart');
 
-        if ($cart[$id] > 1) {
-            $cart[$id]--;
+        if (isset($cart[$id]) && $cart[$id]['quantity'] > 1) {
+            $cart[$id]['quantity']--; // Décrémente uniquement la quantité
         } else {
-            unset($cart[$id]);
+            unset($cart[$id]); // Supprime l'entrée si la quantité tombe à 0
         }
 
-        return $this->session->set('cart', $cart);
+        $this->requestStack->getSession()->set('cart', $cart);
     }
 
-    public function increase($id)
+    public function fullQuantity()
     {
-        $cart = $this->session->get('cart', []);
-        $cart[$id]++;
+        $cart = $this->requestStack->getSession()->get('cart', []);
+        $quantity = 0;
 
-        // if ($cart[$id] > 1) {
-        //     $cart[$id]++;
-        // } else {
+        if (!isset($cart)) {
+            return $quantity;
+        }
 
-        // }
+        foreach ($cart as $product) {
+            $quantity = $quantity + $product['quantity'];
+        }
 
-        return $this->session->set('cart', $cart);
+        return $quantity;
     }
 
-    public function getFull()
+    public function getTotalWithTaxes()
     {
-        $cartComplete = [];
+        $cart = $this->requestStack->getSession()->get('cart', []);
+        $price = 0;
 
-        if ($this->get()) {
-            foreach ($this->get() as $id => $quantity) {
-                $product_object = $this->manager->getRepository(Product::class)->findOneById($id);
+        if (!isset($cart)) {
+            return $price;
+        }
 
-                if (!$product_object) {
-                    $this->delete($id);
-                    continue;
-                }
+        foreach ($cart as $product) {
+            // Calcul avec le prix TTC (getPriceWithTaxes)
+            $price += $product['object']->getPriceWithTaxes() * $product['quantity'];
+        }
 
-                $cartComplete[] = [
-                    'product' => $product_object,
-                    'quantity' => $quantity
-                ];
+        // Arrondir le total à deux décimales
+        return round($price, 2);
+    }
+
+    public function remove()
+    {
+        return $this->requestStack->getSession()->remove('cart');
+    }
+
+    public function getCart()
+    {
+        $cart = $this->requestStack->getSession()->get('cart', []);
+
+        // Filtrer les entrées invalides
+        foreach ($cart as $id => $item) {
+            if (!is_array($item) || !isset($item['object'], $item['quantity'])) {
+                unset($cart[$id]); // Supprimer les données incorrectes
             }
         }
 
-        return $cartComplete;
-    }
-
-    public function getTotal(): float
-    {
-        $cartItems = $this->getFull();
-        $total = 0;
-
-        foreach ($cartItems as $item) {
-            $total += $item['product']->getPrice() * $item['quantity'];
-        }
-
-        return $total;
+        return $cart;
     }
 }
