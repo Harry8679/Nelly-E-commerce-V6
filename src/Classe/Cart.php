@@ -133,4 +133,9 @@ class Cart
 
         return $total;
     }
+
+    public function get()
+    {
+        return $this->session->get('cart');
+    }
 }
