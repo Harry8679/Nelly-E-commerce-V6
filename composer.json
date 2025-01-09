@@ -43,6 +43,7 @@
         "symfony/debug-bundle": "^6.0",
         "symfony/flex": "*",
         "symfony/maker-bundle": "^1.48",
+        "symfony/phpunit-bridge": "^6.0",
         "symfony/stopwatch": "^6.0",
         "symfony/web-profiler-bundle": "^6.0"
     },
