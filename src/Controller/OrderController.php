@@ -27,7 +27,7 @@ class OrderController extends AbstractController
      */
     public function index(Cart $cart, Request $request): Response
     {
-        if (!$cart->getFull()) {
+        if (!$cart->getCart()) {
             return $this->redirectToRoute('app_cart');
         }
 
@@ -39,7 +39,7 @@ class OrderController extends AbstractController
 
         return $this->render('order/order.html.twig', [
             'form' => $form->createView(),
-            'cart' => $cart->getFull()
+            'cart' => $cart->getCart()
         ]);
     }
 
@@ -48,7 +48,7 @@ class OrderController extends AbstractController
      */
     public function add(Cart $cart, Request $request): Response
     {
-        if (!$cart->getFull()) {
+        if (!$cart->getCart()) {
             return $this->redirectToRoute('app_cart');
         }
 
@@ -67,7 +67,7 @@ class OrderController extends AbstractController
             $this->entityManager->persist($order);
             // dd($form->getData());
 
-            foreach ($cart->getFull() as $product) {
+            foreach ($cart->getCart() as $product) {
                 $orderDetails = new OrderDetails();
                 $orderDetails->setMyOrder($order)
                     ->setProduct($product['product']->getName())
@@ -83,7 +83,7 @@ class OrderController extends AbstractController
 
 
         return $this->render('order/add.html.twig', [
-            'cart' => $cart->getFull(),
+            'cart' => $cart->getCart(),
             'order' => $order,
             'address' => $order->getAddress()
         ]);
