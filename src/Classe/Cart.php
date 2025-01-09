@@ -2,6 +2,7 @@
 
 namespace App\Classe;
 
+use App\Entity\Product;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 class Cart
@@ -96,5 +97,40 @@ class Cart
         }
 
         return $cart;
+    }
+
+    public function getFull()
+    {
+        $cartComplete = [];
+
+        if ($this->get()) {
+            foreach ($this->get() as $id => $quantity) {
+                $product_object = $this->manager->getRepository(Product::class)->findOneById($id);
+
+                if (!$product_object) {
+                    $this->delete($id);
+                    continue;
+                }
+
+                $cartComplete[] = [
+                    'product' => $product_object,
+                    'quantity' => $quantity
+                ];
+            }
+        }
+
+        return $cartComplete;
+    }
+
+    public function getTotal(): float
+    {
+        $cartItems = $this->getFull();
+        $total = 0;
+
+        foreach ($cartItems as $item) {
+            $total += $item['product']->getPrice() * $item['quantity'];
+        }
+
+        return $total;
     }
 }
